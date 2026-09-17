@@ -16,12 +16,12 @@ if not defined desktop_dir set "desktop_dir=%USERPROFILE%\Desktop"
 :: 时间戳（wmic 原生，格式固定，与区域无关）
 set "ts="
 for /f "tokens=1" %%t in ('wmic os get localdatetime 2^>nul ^| findstr /r "[0-9]"') do set "ts=%%t"
-if not defined ts set "ts=!RANDOM!!RANDOM!"
-set "ts=!ts:~0,14!"
-if "!ts:~0,4!" gtr "2000" (
-    set "nowstr=!ts:~0,4!-!ts:~4,2!-!ts:~6,2! !ts:~8,2!:!ts:~10,2!:!ts:~12,2!"
-) else (
+if not defined ts (
+    set "ts=%date:~0,4%%date:~5,2%%date:~8,2%000000%"
     set "nowstr=%date% %time%"
+) else (
+    set "ts=!ts:~0,14!"
+    set "nowstr=!ts:~0,4!-!ts:~4,2!-!ts:~6,2! !ts:~8,2!:!ts:~10,2!:!ts:~12,2!"
 )
 set "report_file=!desktop_dir!\网络检测报告_!ts!.txt"
 cls
@@ -656,7 +656,6 @@ del "%temp%\prog.vbs" 2>nul
 echo.
 echo    检测完成！100%%  正在为您打开检测报告...
 echo    ----------------------------------------------------------
-start "" notepad.exe "!report_file!"
 start "" notepad.exe "!report_file!"
 :: ============================================================
 ::  independent cleanup module
