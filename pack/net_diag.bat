@@ -23,7 +23,7 @@ if "!ts:~0,4!" gtr "2000" (
 ) else (
     set "nowstr=%date% %time%"
 )
-set "report_file=!desktop_dir!\网络检测报告_!ts!.txt"
+set "report_file=!desktop_dir!\网络环境检测报告_!ts!.txt"
 cls
 echo.
 :: 生成进度条动画组件（cscript 原生，XP 可用）
@@ -464,7 +464,9 @@ if defined gwseg (
 )
 > "%temp%\landev_list.txt" (
     arp -a > "%temp%\arp_raw.txt" 2>nul
-    for /f "tokens=1" %%a in ('type "%temp%\arp_raw.txt" ^| findstr /i /c:"dynamic" /c:"动态" 2^>nul') do (
+    echo IP              MAC             厂商  状态              来源
+    echo ----------       --------------  ----  -----------------  --------
+    for /f "tokens=1,2" %%a in ('type "%temp%\arp_raw.txt" ^| findstr /i /c:"dynamic" /c:"动态" 2^>nul') do (
         set "islan=0"
         echo %%a | findstr /r /c:"^192\.168\." /c:"^10\." >nul
         if !errorlevel! equ 0 set "islan=1"
@@ -477,9 +479,9 @@ if defined gwseg (
                     if /i not "%%a"=="!localip!" if /i not "%%a"=="!gateway!" (
                         ping -n 2 -w 300 %%a >nul 2>nul
                         if !errorlevel! equ 0 (
-                            echo    - %%a
+                            echo %%a   %%b   -    在线应答          ARP
                         ) else (
-                            echo    - %%a （缓存条目，未应答）
+                            echo %%a   %%b   -    ARP 缓存未应答    ARP
                         )
                     )
                 )
@@ -521,7 +523,7 @@ if defined gwseg set "camseg=!gwseg!"
     if defined camseg (
         for %%n in (100 101 108 64) do (
             set "cip=!camseg!.%%n"
-            set "cstate=无响应（离线/跨网段/禁ping/供电异常）"
+            set "cstate=ICMP 无响应，需厂商工具二次确认"
             ping -n 1 -w 400 !cip! >nul 2>nul
             if !errorlevel! equ 0 set "cstate=在线（ping 通信正常）"
             if /i not "!cip!"=="!localip!" (
@@ -585,17 +587,17 @@ if exist "%temp%\cam_list.txt" (
 )
 (
 echo ============================================================
-echo               网络结构与客户端环境综合诊断报告
+echo               网络环境检测报告
 echo ============================================================
 echo 诊断时间: !nowstr!
 echo 匹配策略: [!os_type! 内核] [!os_arch!]
 echo.
 echo 【客户端硬件配置】
 echo   - 操作系统:  !os_name! !os_arch! !os_build!
-echo   - 核心硬件:  !cpu_name!
-echo   - 运行内存:  !ram_size!
+echo   - CPU:  !cpu_name!
+echo   - 运存:  !ram_size!
 echo   - C 盘剩余:  !disk_free!
-echo   - 显示芯片:  !gpu_name!
+echo   - 显卡:  !gpu_name!
 echo.
 echo 【必备运行库依赖】
 echo   - VC++ 2015-2022（x64）: !vc_x64!
@@ -622,7 +624,7 @@ echo   - 出口 IPv4: !pubip!
 echo   - IP 连通 : !inet_ip!
 echo   - DNS 解析: !inet_dns!
 echo.
-echo 【局域网在线设备】:
+echo 【局域网发现设备】:
 if defined landev_txt (
     echo !landev_txt!
 ) else (
@@ -636,7 +638,7 @@ if defined cam_txt (
     type "%temp%\cam_list.txt"
 )
 echo.
-echo 【推荐空闲可用 IP】:
+echo 【建议分配 IP】:
 if defined freeip_txt (
     echo !freeip_txt!
 ) else (
@@ -644,7 +646,7 @@ if defined freeip_txt (
 )
 echo.
 echo ============================================================
-echo 说明：请将此报告保存或直接发送给技术人员进行环境排查。
+echo 本报告仅呈现本次检测结果与建议操作，不包含诊断过程。检测结果基于当前网络状态，可能随环境变化。
 echo ============================================================
 ) > "!report_file!"
 :: 清理临时文件
