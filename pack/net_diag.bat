@@ -16,12 +16,12 @@ if not defined desktop_dir set "desktop_dir=%USERPROFILE%\Desktop"
 :: 时间戳（wmic 原生，格式固定，与区域无关）
 set "ts="
 for /f "tokens=1" %%t in ('wmic os get localdatetime 2^>nul ^| findstr /r "[0-9]"') do set "ts=%%t"
-if not defined ts (
-    set "ts=%date:~0,4%%date:~5,2%%date:~8,2%000000%"
-    set "nowstr=%date% %time%"
-) else (
-    set "ts=!ts:~0,14!"
+if not defined ts set "ts=!RANDOM!!RANDOM!"
+set "ts=!ts:~0,14!"
+if "!ts:~0,4!" gtr "2000" (
     set "nowstr=!ts:~0,4!-!ts:~4,2!-!ts:~6,2! !ts:~8,2!:!ts:~10,2!:!ts:~12,2!"
+) else (
+    set "nowstr=%date% %time%"
 )
 set "report_file=!desktop_dir!\网络检测报告_!ts!.txt"
 cls
@@ -165,6 +165,19 @@ if !errorlevel! equ 0 (
         if !rel! lss 393295 set "net_version=【已安装】（.NET 4.5.x）"
     )
 )
+:: 8. WebView2 Runtime
+set "webview2=【缺失】"
+reg query "HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv >nul 2>nul
+if !errorlevel! equ 0 (
+    for /f "tokens=2*" %%a in ('reg query "HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv 2^>nul') do set "wv_ver=%%b"
+    if defined wv_ver set "webview2=【已安装】(!wv_ver!)"
+) else (
+    reg query "HKLM\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv >nul 2>nul
+    if !errorlevel! equ 0 (
+        for /f "tokens=2*" %%a in ('reg query "HKLM\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv 2^>nul') do set "wv_ver=%%b"
+        if defined wv_ver set "webview2=【已安装】(!wv_ver!)"
+    )
+)
 cls
 echo.
 echo    正在检测中···请耐心等待···
@@ -256,17 +269,6 @@ if /i "!dhcpen!"=="是" set "dhcp=自动获取（DHCP）"
 set "nettype=有线连接（网线）"
 netsh wlan show interfaces 2>nul | findstr /i /c:"已连接" /c:": connected" >nul
 if !errorlevel! equ 0 set "nettype=Wi-Fi（无线网络）"
-:: === ipconfig fallback ===
-if "!localip!"=="127.0.0.1" (
-    for /f "tokens=2 delims=:" %%a in ('ipconfig 2^>nul ^| findstr /i "IPv4"') do (
-        for /f "tokens=1" %%b in ("%%a") do if "!localip!"=="127.0.0.1" set "localip=%%b"
-    )
-)
-if not defined gateway (
-    for /f "tokens=2 delims=:" %%a in ('ipconfig /all 2^>nul ^| findstr /i /c:"Default Gateway" /c:"默认网关"') do (
-        for /f "tokens=1" %%b in ("%%a") do if not defined gateway set "gateway=%%b"
-    )
-)
 goto :NETWORK_COMMON
 :: ------------------------------------------------------------
 :: 分支 B: 老旧 Windows (XP/Win7/Win8/Server2003-2008R2) 原生命令兼容流
@@ -421,11 +423,7 @@ if defined gateway (
         )
     )
     if "!gw_fetch_ok!"=="0" (
-        if "!is_lan_hop2!"=="1" (
-            set "gwtype=【疑似二级路由】"
-        ) else (
-            set "gwtype=【疑似一级路由】"
-        )
+        set "gwtype=【未识别】（网关页面未抓取到，指纹判定跳过）"
     ) else (
         findstr /i "天翼网关 E8-C ChinaNet 中国移动 吉比特 沃宽网关 FiberHome EchoLife ZXHN GPON EPON 光猫 光纤 HGU HG8 cgi-bin" "%http_dump%" >nul 2>nul
         if !errorlevel! equ 0 (
@@ -603,6 +601,7 @@ echo 【必备运行库依赖】
 echo   - VC++ 2015-2022（x64）: !vc_x64!
 echo   - VC++ 2015-2022（x86）: !vc_x86!
 echo   - .NET Framework 运行库: !net_version!
+echo   - WebView2 Runtime: !webview2!
 echo.
 echo ------------------------------------------------------------
 echo 【网络结构分析】
@@ -656,6 +655,7 @@ del "%temp%\prog.vbs" 2>nul
 echo.
 echo    检测完成！100%%  正在为您打开检测报告...
 echo    ----------------------------------------------------------
+start "" notepad.exe "!report_file!"
 start "" notepad.exe "!report_file!"
 :: ============================================================
 ::  independent cleanup module
