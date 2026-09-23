@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>网关类型判定逻辑</title>
+<style>
+  body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #f7f8fa; margin: 0; padding: 24px; }
+  h1 { font-size: 18px; color: #1f2329; margin: 0 0 4px; }
+  .sub { font-size: 13px; color: #646a73; margin-bottom: 16px; }
+  .card { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 16px; margin-bottom: 14px; }
+  .legend { font-size: 12px; color: #646a73; line-height: 1.9; }
+  .legend b { color: #1f2329; }
+  svg text { font-family: "Microsoft YaHei", sans-serif; }
+  .node-start { fill: #1f6feb; }
+  .node-probe { fill: #ff9f0a; }
+  .node-decide { fill: #ffd666; }
+  .node-result { fill: #52c41a; }
+  .node-fallback { fill: #bfbfbf; }
+  .note { font-size: 12px; color: #8a919f; }
+</style>
+</head>
+<body>
+<h1>网关类型（gwtype）判定逻辑</h1>
+<div class="sub">来源：网络环境诊断_修复版.bat · 阶段 3 汇聚层 · 证据源 = ① 网关 80 端口 HTTP 指纹（curl → VBS 兜底）② tracert 第 2 跳 hop2</div>
+
+<div class="card">
+<svg width="960" height="720" viewBox="0 0 960 720">
+  <!-- 起点 -->
+  <rect x="360" y="12" width="240" height="40" rx="20" class="node-start"/>
+  <text x="480" y="36" text-anchor="middle" fill="#fff" font-size="14" font-weight="bold">检测到网关 gateway</text>
+
+  <!-- 探测1 -->
+  <line x1="480" y1="52" x2="480" y2="86" stroke="#8a919f" stroke-width="1.5"/>
+  <rect x="330" y="86" width="300" height="56" rx="8" class="node-probe"/>
+  <text x="480" y="106" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">抓取 http://!gateway!</text>
+  <text x="480" y="124" text-anchor="middle" fill="#fff" font-size="11">curl（1.5s 超时）→ VBS cscript 兜底（3s）</text>
+  <text x="480" y="138" text-anchor="middle" fill="#fff" font-size="11">抓不到页面内容也继续（页面为空走未命中）</text>
+
+  <!-- 判定1: 光猫指纹 -->
+  <line x1="480" y1="142" x2="480" y2="176" stroke="#8a919f" stroke-width="1.5"/>
+  <rect x="280" y="176" width="400" height="56" rx="8" class="node-decide"/>
+  <text x="480" y="196" text-anchor="middle" fill="#333" font-size="13" font-weight="bold">命中光猫指纹？</text>
+  <text x="480" y="214" text-anchor="middle" fill="#555" font-size="11">天翼网关 / E8-C / ChinaNet / 中国移动 / 吉比特 / 沃宽网关</text>
+  <text x="480" y="228" text-anchor="middle" fill="#555" font-size="11">/ FiberHome / EchoLife / ZXHN / GPON / EPON / 光猫 / 光纤</text>
+
+  <!-- 光猫命中 -->
+  <line x1="480" y1="232" x2="480" y2="266" stroke="#52c41a" stroke-width="1.5"/>
+  <text x="492" y="252" fill="#52c41a" font-size="11">命中</text>
+  <rect x="330" y="266" width="300" height="44" rx="8" class="node-result"/>
+  <text x="480" y="286" text-anchor="middle" fill="#fff" font-size="12" font-weight="bold">【确认为光猫直连】</text>
+  <text x="480" y="301" text-anchor="middle" fill="#fff" font-size="10">捕获到运营商宽带光猫指纹</text>
+
+  <!-- 未命中光猫 → 路由指纹 -->
+  <line x1="250" y1="204" x2="120" y2="336" stroke="#8a919f" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="128" y="270" fill="#8a919f" font-size="11">未命中</text>
+  <rect x="20" y="336" width="200" height="56" rx="8" class="node-decide"/>
+  <text x="120" y="356" text-anchor="middle" fill="#333" font-size="13" font-weight="bold">命中路由器指纹？</text>
+  <text x="120" y="374" text-anchor="middle" fill="#555" font-size="11">TP-LINK / MERCURY / FAST / ASUS</text>
+  <text x="120" y="388" text-anchor="middle" fill="#555" font-size="11">/ MiWiFi / 小米 / 华硕 / 腾达 / Tenda</text>
+
+  <!-- 路由指纹命中 → hop2 -->
+  <line x1="120" y1="392" x2="120" y2="440" stroke="#52c41a" stroke-width="1.5"/>
+  <text x="132" y="420" fill="#52c41a" font-size="11">命中</text>
+  <rect x="10" y="440" width="220" height="44" rx="8" class="node-probe"/>
+  <text x="120" y="458" text-anchor="middle" fill="#fff" font-size="12" font-weight="bold">tracert 第 2 跳 hop2</text>
+  <text x="120" y="474" text-anchor="middle" fill="#fff" font-size="10">tracert -d -h 2 -w 300 223.5.5.5</text>
+
+  <!-- hop2 局域网分支 -->
+  <line x1="120" y1="484" x2="60" y2="530" stroke="#8a919f" stroke-width="1.5"/>
+  <text x="60" y="512" fill="#8a919f" font-size="10" text-anchor="end">hop2 是局域网地址</text>
+  <rect x="10" y="530" width="180" height="56" rx="8" class="node-result"/>
+  <text x="100" y="550" text-anchor="middle" fill="#fff" font-size="11" font-weight="bold">【路由器连接】</text>
+  <text x="100" y="565" text-anchor="middle" fill="#fff" font-size="10">二级级联路由</text>
+  <text x="100" y="579" text-anchor="middle" fill="#fff" font-size="10">上层还有设备 hop2</text>
+
+  <!-- hop2 非局域网分支 -->
+  <line x1="150" y1="484" x2="250" y2="530" stroke="#8a919f" stroke-width="1.5"/>
+  <text x="240" y="512" fill="#8a919f" font-size="10">hop2 非局域网 / 空</text>
+  <rect x="200" y="530" width="160" height="56" rx="8" class="node-result"/>
+  <text x="280" y="550" text-anchor="middle" fill="#fff" font-size="11" font-weight="bold">【路由器连接】</text>
+  <text x="280" y="565" text-anchor="middle" fill="#fff" font-size="10">路由器主拨号</text>
+  <text x="280" y="579" text-anchor="middle" fill="#fff" font-size="10">/ 光猫已桥接</text>
+
+  <!-- 路由指纹未命中 → hop2 -->
+  <line x1="20" y1="364" x2="220" y2="630" stroke="#8a919f" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="60" y="620" fill="#8a919f" font-size="11">未命中（两套指纹都没有）</text>
+  <rect x="300" y="560" width="200" height="44" rx="8" class="node-probe"/>
+  <text x="400" y="578" text-anchor="middle" fill="#fff" font-size="12" font-weight="bold">再看 hop2 判定层级</text>
+  <text x="400" y="594" text-anchor="middle" fill="#fff" font-size="10">tracert 第 2 跳是否局域网地址</text>
+
+  <!-- hop2 局域网 -->
+  <line x1="400" y1="604" x2="400" y2="636" stroke="#8a919f" stroke-width="1.5"/>
+  <rect x="280" y="636" width="240" height="56" rx="8" class="node-result"/>
+  <text x="400" y="656" text-anchor="middle" fill="#fff" font-size="11" font-weight="bold">【路由器连接】</text>
+  <text x="400" y="671" text-anchor="middle" fill="#fff" font-size="10">二级级联网络，上级网关 hop2</text>
+  <text x="400" y="685" text-anchor="middle" fill="#fff" font-size="10">（192.168.x / 10.x / 172.16-31.x）</text>
+
+  <!-- hop2 非局域网 -->
+  <line x1="540" y1="604" x2="720" y2="636" stroke="#8a919f" stroke-width="1.5"/>
+  <text x="720" y="626" fill="#8a919f" font-size="10" text-anchor="end">hop2 非局域网 / 空</text>
+  <rect x="660" y="636" width="240" height="44" rx="8" class="node-result"/>
+  <text x="780" y="656" text-anchor="middle" fill="#fff" font-size="11" font-weight="bold">【独立主路由 / 企业网关】</text>
+  <text x="780" y="671" text-anchor="middle" fill="#fff" font-size="10">已是一级网络，未暴露光猫特征</text>
+</svg>
+</div>
+
+<div class="card legend">
+  <b>hop2 局域网判定规则</b>：<code>192.168.*</code> / <code>10.*</code> / <code>172.16-31.*</code>（前缀匹配，无 $ 锚定避免 CR 坑）<br>
+  <b>并发探测</b>：HTTP 抓指纹与 tracert 同时进行，互不依赖，任一结果都参与判定<br>
+  <b>兜底顺序</b>：光猫指纹 &gt; 路由器指纹 &gt; hop2 层级 &gt; 最终兜底"独立主路由"
+</div>
+
+<div class="card legend">
+  <b>本次实测（你机器）</b>：网关 192.168.1.1（电信光猫）。curl 抓 80 端口未取到页面内容 → 光猫/路由指纹均未命中，tracert 第 2 跳超时 → 落到兜底分支，显示"独立主路由/企业网关"。<span class="note">（多数光猫管理页需认证或不在 80 端口，指纹抓取是启发式、非必中；判定结构正确，命中率依赖现场网关形态。）</span>
+</div>
+</body>
+</html>

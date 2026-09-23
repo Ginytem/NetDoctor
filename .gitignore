@@ -1,0 +1,15 @@
+# 备份文件不推仓库
+NetDoctor_备份.exe
+NetDoctor_v1.0.exe
+net_diag_v1.0.bat
+*_备份.exe
+
+# 打包测试文件
+pack/*.sed
+pack/hello.bat
+pack/test.bat
+
+# 临时文件
+$log
+b
+*.log
