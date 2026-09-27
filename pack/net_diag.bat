@@ -422,27 +422,42 @@ if defined gateway (
             if "%%p"=="172" if %%q geq 16 if %%q leq 31 set "is_lan_hop2=1"
         )
     )
-    if "!gw_fetch_ok!"=="0" (
-        set "gwtype=【未识别】（网关页面未抓取到，指纹判定跳过）"
-    ) else (
-        findstr /i "天翼网关 E8-C ChinaNet 中国移动 吉比特 沃宽网关 FiberHome EchoLife ZXHN GPON EPON 光猫 光纤 HGU HG8 cgi-bin" "%http_dump%" >nul 2>nul
-        if !errorlevel! equ 0 (
-            set "gwtype=【确认为光猫直连】"
-        ) else (
-            findstr /i "TP-LINK MERCURY FAST ASUS MiWiFi 小米 华硕 腾达 Tenda H3C OpenWrt 路由器 Router" "%http_dump%" >nul 2>nul
-            if !errorlevel! equ 0 (
-                if "!is_lan_hop2!"=="1" (
-                    set "gwtype=【路由器连接】（二级级联路由，上层还有设备 !hop2!）"
-                ) else (
-                    set "gwtype=【路由器连接】（路由器负责主拨号/光猫已设为桥接）"
-                )
+    set "ont_hit=0"
+    set "router_hit=0"
+    if "!gw_fetch_ok!"=="1" (
+        findstr /i "TP-LINK MERCURY FAST 小米 华为 华硕 腾达 Tenda H3C ASUS 网件 领势 OpenWrt 路由器 Router MiWiFi 水星 迅捷" "%http_dump%" >nul 2>nul
+        if !errorlevel! equ 0 set "router_hit=1"
+        findstr /i "天翼网关 E8-C ChinaNet 中国移动 中国联通 中国电信 吉比特 沃宽 FiberHome EchoLife ZXHN HGU HG8" "%http_dump%" >nul 2>nul
+        if !errorlevel! equ 0 set "ont_hit=1"
+        if "!router_hit!"=="1" if "!ont_hit!"=="0" (
+            if "!is_lan_hop2!"=="1" (
+                set "gwtype=【路由器连接】（二级级联，上层还有设备 !hop2!）"
             ) else (
-                if "!is_lan_hop2!"=="1" (
-                    set "gwtype=【路由器连接】（二级级联网络，上级网关 !hop2!）"
-                ) else (
-                    set "gwtype=【独立主路由/企业网关】（已是一级网络，未暴露光猫特征）"
-                )
+                set "gwtype=【路由器连接】（主拨号/光猫已桥接）"
             )
+        )
+        if "!ont_hit!"=="1" if "!router_hit!"=="0" (
+            if "!is_lan_hop2!"=="1" (
+                set "gwtype=【运营商网关 光猫类】（二级级联，上层还有设备 !hop2!）"
+            ) else (
+                set "gwtype=【运营商网关 光猫类】（一级直连拨号）"
+            )
+        )
+        if "!router_hit!"=="1" if "!ont_hit!"=="1" (
+            set "gwtype=【路由/光猫一体】（疑似运营商智能网关）"
+        )
+        if "!router_hit!"=="0" if "!ont_hit!"=="0" (
+            if "!is_lan_hop2!"=="1" (
+                set "gwtype=【疑似二级路由】（无指纹，第2跳内网）"
+            ) else (
+                set "gwtype=【疑似一级网关】（无指纹，第2跳公网/CGN）"
+            )
+        )
+    ) else (
+        if "!is_lan_hop2!"=="1" (
+            set "gwtype=【疑似二级路由】（页面未抓取）"
+        ) else (
+            set "gwtype=【疑似一级网关】（页面未抓取）"
         )
     )
 )
