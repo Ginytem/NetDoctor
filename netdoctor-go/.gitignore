@@ -1,0 +1,10 @@
+# 本地专用密钥文件（含真实 TOTP 密钥混淆串，绝不可入库）
+totp_local.go
+
+# 编译产物
+NetDoctor-*.exe
+debug-*.exe
+
+# 截图与调试残留
+shot*.png
+dbg*.png
