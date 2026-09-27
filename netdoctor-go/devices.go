@@ -38,7 +38,7 @@ func lanDevicesStructured(localIP, gateway, gwseg string) []LanDevice {
 		if pingOK(e.IP, 2, 300) {
 			status = "在线应答"
 		}
-		devs = append(devs, LanDevice{IP: e.IP, MAC: e.MAC, Vendor: "-", Status: status, Source: "ARP"})
+		devs = append(devs, LanDevice{IP: e.IP, MAC: e.MAC, Vendor: lookupVendor(e.MAC), Status: status, Source: "ARP"})
 	}
 	return devs
 }
@@ -49,11 +49,11 @@ func formatLanDevices(devs []LanDevice) []string {
 		return []string{"    - 无"}
 	}
 	lines := []string{
-		fmt.Sprintf("%-15s %-14s %-4s %-18s %s", "IP", "MAC", "厂商", "状态", "来源"),
-		fmt.Sprintf("%-15s %-14s %-4s %-18s %s", "----------", "--------------", "----", "-----------------", "--------"),
+		fmt.Sprintf("%-15s %-14s %-22s %-18s %s", "IP", "MAC", "厂商", "状态", "来源"),
+		fmt.Sprintf("%-15s %-14s %-22s %-18s %s", "----------", "--------------", "----------------------", "-----------------", "--------"),
 	}
 	for _, d := range devs {
-		lines = append(lines, fmt.Sprintf("%-15s %-14s %-4s %-18s %s", d.IP, d.MAC, d.Vendor, d.Status, d.Source))
+		lines = append(lines, fmt.Sprintf("%-15s %-14s %-22s %-18s %s", d.IP, d.MAC, d.Vendor, d.Status, d.Source))
 	}
 	return lines
 }

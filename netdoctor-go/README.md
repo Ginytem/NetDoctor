@@ -91,7 +91,7 @@ go build -ldflags "-s -w -H=windowsgui" -o NetDoctor-x64.exe .
   （对齐上游最新判定：路由器指纹组 × 光猫指纹组组合矩阵 + tracert 第 2 跳层级，输出"路由器连接/运营商网关 光猫类/路由光猫一体/疑似二级路由/疑似一级网关"五类）
 - **IP 分配**：DHCP/静态、DHCP 服务器
 - **外网连通**：出口 IPv4（多源探测）、IP 连通、DNS 解析
-- **局域网**：局域网设备表（ping+ARP）、目标相机状态（.100/.101/.108/.64）、建议分配 IP（扫描 .171~.254 空闲段）
+- **局域网**：局域网设备表（ping+ARP，**MAC 厂商识别**：内嵌 gomanuf/Wireshark OUI 数据库 47798 条前缀，`go:embed` 打包零外部依赖；**随机/本地管理 MAC 自动识别为"随机 MAC"**，如手机/电脑隐私随机地址，不误判厂商）、目标相机状态（.100/.101/.108/.64）、建议分配 IP（扫描 .171~.254 空闲段）
 
 ## 构建方法
 
@@ -136,9 +136,12 @@ go test -v ./...
 | `gateway.go` | 网关类型指纹判定 + tracert 第 2 跳 |
 | `scan.go` | 公网 IP、ping、局域网设备、相机、空闲 IP |
 | `devices.go` | 局域网设备结构化表格模型 |
+| `vendor.go` | MAC 厂商识别（内嵌 OUI 数据库）+ 随机/本地管理 MAC 检测 |
+| `manuf.txt` | OUI 厂商前缀数据库（gomanuf/Wireshark，47798 条，`go:embed` 内嵌） |
 | `report.go` | TXT 报告排版与 GBK 写出 |
 | `export.go` | HTML / JSON 报告生成 |
 | `totp_test.go` | TOTP 单元测试 |
+| `vendor_test.go` | 厂商识别 / 随机 MAC 单元测试 |
 
 ## 注意事项
 
