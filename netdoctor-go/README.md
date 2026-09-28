@@ -23,7 +23,7 @@ NetDoctor-x64-garble.exe  # 混淆加固版（-literals 字符串混淆 + 符号
 package main
 
 func init() {
-	// 真实密钥 <你的Base32密钥> 的 XOR(0x7D)+Base64 混淆串
+	// 此处填写真实密钥（Base32，32 字符）的 XOR(0x7D)+Base64 混淆串，见下方生成方法
 	totpSecretEnc = "<你的混淆串>"
 }
 ```
@@ -36,14 +36,35 @@ go build -ldflags "-s -w -H=windowsgui" -o NetDoctor-x64.exe .
 
 3. 手机验证器录入密钥（一次性）：
 
-- 密钥：`<你的Base32密钥>`（Base32）
-- otpauth 导入：`otpauth://totp/NetDoctor?secret=<你的Base32密钥>&issuer=NetDoctor&period=30&digits=6`
+- 密钥：真实密钥只保存在本地 `totp_local.go`（**不写入任何公开文档**；公开仓库 README 使用占位符，防止验证码被克隆者直接破解）
+- otpauth 导入：`otpauth://totp/NetDoctor?secret=<你的Base32密钥>&issuer=NetDoctor&period=30&digits=6`（把 `<你的Base32密钥>` 换成真实密钥即可，可生成二维码扫码录入）
 
 4. 客户打开程序 → 输入手机验证器上的 **6 位动态码**（30 秒刷新，±1 窗口容忍，输错最多 3 次）→ 进入主界面。
+
+> **密钥来源（两级）**：程序启动时先自动拉取 `https://tools.ginytem.com/ndkey` 上的密钥；
+> 拉取成功（内容校验合法）则以远程密钥为准，服务器可**随时更换/吊销密钥而无需重发 exe**；
+> 拉取失败/断网/内容非法时**自动回退内置密钥**（上述本地构建的混淆串），离线照常可用。
+> 公开版（无内置密钥）不联网、不拉取、直进主界面。
 
 > **防盗用原理**：内置密钥校验动态码，密钥在二进制内为 **XOR+Base64 混淆存储**（strings 直接提取不到明文），
 > 并可用 garble `-literals` 进一步混淆。程序被拷走给他人，没有你的手机验证器就无法生成正确动态码。
 > 注意：密钥一旦泄露，改 `totp_local.go` 中的混淆串（用相同 XOR 重新编码）后重新编译更换。
+
+### 服务器端部署密钥（远程拉取，可选）
+
+在 `tools.ginytem.com` 的 web 根目录放一个**静态文件 `ndkey`**（无扩展名），内容为混淆串。程序启动时 GET `https://tools.ginytem.com/ndkey` 拉取。
+
+1. 生成混淆串（PowerShell，`<密钥>` 换成 Base32 密钥，**建议 32 字符**，RFC 6238 推荐 160 bit）：
+
+```powershell
+$k = "<密钥>"; $bytes = [Text.Encoding]::UTF8.GetBytes($k) | ForEach-Object { $_ -bxor 0x7D }; [Convert]::ToBase64String([byte[]]$bytes)
+```
+
+2. 把输出写入服务器文件 `ndkey`（一行即可）。
+3. 验证：浏览器打开 `https://tools.ginytem.com/ndkey` 应显示该串。
+4. **轮换/吊销**：换密钥 → 重新生成混淆串 → 覆盖 `ndkey` 文件 → 客户下次启动自动用新密钥；已分发 exe 无法再通过验证（内置兜底需重新编译才能彻底替换）。
+
+> 安全说明：ndkey 返回的是混淆串（非明文密钥），抓包/下载得到的是与 exe 内同级别的密文；远程密钥的真正价值是**服务器可随时更换**，让已分发出去的 exe 可控失效。
 
 ## 图形界面
 
@@ -127,7 +148,7 @@ go test -v ./...
 | `main.go` | 入口：密钥已配置时弹权限验证对话框，否则直进主窗口 |
 | `gui.go` | 主界面（工具栏/结果列表/下方详情/状态栏）、权限验证对话框、导出 |
 | `items.go` | 检测项模型（CheckItem）、5 种状态常量、6 个分类 |
-| `totp.go` | TOTP 动态验证码（RFC 6238）、密钥混淆存储与还原（公开版为空占位） |
+| `totp.go` | TOTP 动态验证码（RFC 6238）、密钥混淆存储与还原、**远程密钥拉取（失败回退内置）**（公开版为空占位） |
 | `totp_local.go` | **本地专用**：真实密钥混淆串（已 gitignore，不入库，启用验证码） |
 | `icmp.go` | 原生 ICMP ping（`IcmpSendEcho`，零弹窗零权限） |
 | `sysinfo.go` | 操作系统 / CPU / 内存 / 磁盘 / 显卡 |
