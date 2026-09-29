@@ -296,6 +296,18 @@ func (a *appUI) exportReport() {
 	walk.MsgBox(a.mw, "导出报告", crlf("报告已导出到：\n"+dlg.FilePath), walk.MsgBoxIconInformation)
 }
 
+// loadAppIcon 从 exe 自身提取嵌入的图标（.ico 资源），用于窗口标题栏与任务栏
+func loadAppIcon() *walk.Icon {
+	exe, err := os.Executable()
+	if err != nil {
+		return nil
+	}
+	if ic, err := walk.NewIconExtractedFromFile(exe, 0, 0); err == nil {
+		return ic
+	}
+	return nil
+}
+
 // ---------- 验证码对话框 ----------
 func showTotpDialog() bool {
 	var dlg *walk.Dialog
@@ -325,6 +337,7 @@ func showTotpDialog() bool {
 	dialogCfg := Dialog{
 		AssignTo:      &dlg,
 		Title:         "NetDoctor - 权限验证",
+		Icon:          loadAppIcon(),
 		MinSize:       Size{Width: 440, Height: 190},
 		DefaultButton: &verifyBtn,
 		CancelButton:  &cancelBtn,
@@ -375,6 +388,7 @@ func runMainWindow() {
 	MainWindow{
 		AssignTo: &app.mw,
 		Title:    "NetDoctor 网络环境检测工具",
+		Icon:     loadAppIcon(),
 		Size:     Size{Width: 1024, Height: 800},
 		MinSize:  Size{Width: 900, Height: 640},
 		Layout: VBox{

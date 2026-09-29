@@ -36,8 +36,19 @@
 
 ### 构建（可选）
 ```bat
+rem 1. 生成图标/版本/manifest 资源（仅首次或改配置后需要；已提交的 .syso 可直接构建）
+go-winres make -in winres\winres.json -out rsrc_windows_amd64.syso -arch amd64
+go-winres make -in winres\winres.json -out rsrc_windows_386.syso -arch 386
+
+rem 2. 编译（x64 / x86）
 go build -ldflags "-s -w -H=windowsgui" -o NetDoctor-x64.exe .
+set GOARCH=386 && go build -ldflags "-s -w -H=windowsgui" -o NetDoctor-x86.exe .
 ```
+
+> 资源说明：仓库已包含 `winres/` 配置与生成好的 `.syso` 资源文件（程序图标、版本信息 1.0.0、manifest）。manifest 声明使用新版通用控件（comctl32 v6），**缺失时部分对话框控件（如提示气泡）会创建失败导致程序退出，请勿删除 `.syso`**。
+
+### 更新记录
+- **2026-09-29**：新增程序图标（地球+扫描雷达）、版本信息 1.0.0；构建资源改为 go-winres 管理（icon / version / manifest 一体化）。
 
 ---
 
