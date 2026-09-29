@@ -6,6 +6,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/lxn/walk"
@@ -64,19 +65,23 @@ func (s *itemStyler) StyleCell(style *walk.CellStyle) {
 
 // ---------- 主窗口控制器 ----------
 type appUI struct {
-	mw        *walk.MainWindow
-	model     *itemModel
-	table     *walk.TableView
-	detail    *walk.TextEdit
-	statusLbl *walk.Label
-	progress  *walk.ProgressBar
-	elapsed   *walk.Label
-	exportBtn *walk.PushButton
-	redetect  *walk.PushButton
-	formatBox *walk.ComboBox
-	running   bool
-	lastRes   *CheckResult
-	startAt   time.Time
+	mw         *walk.MainWindow
+	model      *itemModel
+	table      *walk.TableView
+	detail     *walk.TextEdit
+	statusLbl  *walk.Label
+	progress   *walk.ProgressBar
+	elapsed    *walk.Label
+	exportBtn  *walk.PushButton
+	redetect   *walk.PushButton
+	formatBox  *walk.ComboBox
+	pingAddr   *walk.LineEdit
+	pingResult *walk.TextEdit
+	pingBtn    *walk.PushButton
+	pinging    bool
+	running    bool
+	lastRes    *CheckResult
+	startAt    time.Time
 }
 
 // sync 切到 UI 线程（窗口销毁后安全忽略）
@@ -149,7 +154,7 @@ func (a *appUI) startDetect() {
 				fi = 0
 			}
 			r := walk.MsgBox(a.mw, "检测完成",
-				"检测完成，共 "+fmt.Sprint(len(res.Items))+" 项。\n\n是否立即导出检测报告？\n当前格式："+formats[fi],
+				crlf("检测完成，共 "+fmt.Sprint(len(res.Items))+" 项。\n\n是否立即导出检测报告？\n当前格式："+formats[fi]),
 				walk.MsgBoxYesNo|walk.MsgBoxIconQuestion)
 			if r == 6 { // IDYES
 				a.exportToDesktop()
@@ -168,7 +173,38 @@ func (a *appUI) showDetail() {
 	if d == "" {
 		d = "（无补充说明）"
 	}
-	a.detail.SetText(d)
+	a.detail.SetText(crlf(d))
+}
+
+// doPing 右侧 Ping 面板：输入 IP/域名，后台执行，人话结果回填（不卡界面）
+func (a *appUI) doPing() {
+	if a.pinging {
+		return
+	}
+	addr := a.pingAddr.Text()
+	if addr == "" {
+		a.pingResult.SetText("请输入要检测的 IP 地址或域名。")
+		a.pingAddr.SetFocus()
+		return
+	}
+	a.pinging = true
+	a.pingBtn.SetEnabled(false)
+	a.pingBtn.SetText("检测中…")
+	a.pingResult.SetTextColor(walk.RGB(0x0f, 0x17, 0x2a))
+	a.pingResult.SetText("正在检测 " + addr + " ……")
+	go func() {
+		r := pingStats(addr, 4, 1000)
+		text := crlf(r.pingSummary())
+		color, mark := pingColorClass(&r)
+		a.sync(func() {
+			a.pingResult.SetTextColor(color)
+			a.pingResult.SetText(mark + " " + text)
+			a.pinging = false
+			a.pingBtn.SetEnabled(true)
+			a.pingBtn.SetText("开始 Ping")
+			a.pingAddr.SetFocus()
+		})
+	}()
 }
 
 // ---------- 导出 ----------
@@ -186,6 +222,20 @@ func (a *appUI) writeReportByFormat(path string) error {
 	default:
 		return os.WriteFile(path, []byte(buildHTMLReport(a.lastRes)), 0644)
 	}
+}
+
+// crlf Windows 的 EDIT/MessageBox 控件不识别裸 \n，统一转为 \r\n 才能正确换行
+func crlf(s string) string { return strings.ReplaceAll(s, "\n", "\r\n") }
+
+// pingColorClass 按 Ping 结果返回状态色与图标（PASS 绿 / WARN 橙 / FAIL 红）
+func pingColorClass(r *PingResult) (walk.Color, string) {
+	if !r.ResolveOK || r.Received == 0 {
+		return walk.RGB(0xdc, 0x26, 0x26), "✗" // FAIL：解析失败或全部超时
+	}
+	if r.lossPercent() > 0 || r.AvgMs > 100 {
+		return walk.RGB(0xd9, 0x77, 0x06), "⚠" // WARN：丢包或延迟偏高/高
+	}
+	return walk.RGB(0x16, 0xa3, 0x4a), "✓" // PASS：全通且延迟正常
 }
 
 // desktopDir 获取真实桌面目录（兼容桌面重定向）
@@ -212,7 +262,7 @@ func (a *appUI) exportToDesktop() {
 		walk.MsgBox(a.mw, "导出报告", "写入失败："+err.Error(), walk.MsgBoxIconError)
 		return
 	}
-	walk.MsgBox(a.mw, "导出报告", "报告已导出到：\n"+path, walk.MsgBoxIconInformation)
+	walk.MsgBox(a.mw, "导出报告", crlf("报告已导出到：\n"+path), walk.MsgBoxIconInformation)
 }
 
 // exportReport 按所选格式导出（保存对话框选择路径）
@@ -243,7 +293,7 @@ func (a *appUI) exportReport() {
 		walk.MsgBox(a.mw, "导出报告", "写入失败："+werr.Error(), walk.MsgBoxIconError)
 		return
 	}
-	walk.MsgBox(a.mw, "导出报告", "报告已导出到：\n"+dlg.FilePath, walk.MsgBoxIconInformation)
+	walk.MsgBox(a.mw, "导出报告", crlf("报告已导出到：\n"+dlg.FilePath), walk.MsgBoxIconInformation)
 }
 
 // ---------- 验证码对话框 ----------
@@ -298,13 +348,13 @@ func showTotpDialog() bool {
 				Layout: HBox{Spacing: 8},
 				Children: []Widget{
 					PushButton{
-						AssignTo: &verifyBtn,
-						Text:     "验证",
+						AssignTo:  &verifyBtn,
+						Text:      "验证",
 						OnClicked: doVerify,
 					},
 					PushButton{
-						AssignTo: &cancelBtn,
-						Text:     "取消",
+						AssignTo:  &cancelBtn,
+						Text:      "取消",
 						OnClicked: func() { dlg.Cancel() },
 					},
 				},
@@ -344,53 +394,91 @@ func runMainWindow() {
 						CurrentIndex: 0,
 					},
 					PushButton{
-						AssignTo: &app.exportBtn,
-						Text:     "导出报告",
+						AssignTo:  &app.exportBtn,
+						Text:      "导出报告",
 						OnClicked: func() { app.exportReport() },
 					},
 					PushButton{
-						AssignTo: &app.redetect,
-						Text:     "重新检测",
+						AssignTo:  &app.redetect,
+						Text:      "重新检测",
 						OnClicked: func() { app.startDetect() },
 					},
 				},
 			},
-			// 主体：检测结果列表（上，占 8） + 详情与建议（下，占 2）
+			// 主体：左 = 检测结果列表（上 8）+ 详情与建议（下 2）；右 = Ping 测试面板
 			Composite{
-				Layout: VBox{Spacing: 8},
+				Layout:        HBox{Spacing: 8},
 				StretchFactor: 1,
 				Children: []Widget{
-					GroupBox{
-						Title:  "检测结果",
-						Layout: VBox{},
-						StretchFactor: 8,
+					Composite{
+						Layout:        VBox{Spacing: 8},
+						StretchFactor: 1,
 						Children: []Widget{
-							TableView{
-								AssignTo: &app.table,
-								Columns: []TableViewColumn{
-									{Title: "状态", Width: 90},
-									{Title: "检测项", Width: 200},
-									{Title: "结果", Width: 380},
+							GroupBox{
+								Title:         "检测结果",
+								Layout:        VBox{},
+								StretchFactor: 8,
+								Children: []Widget{
+									TableView{
+										AssignTo: &app.table,
+										Columns: []TableViewColumn{
+											{Title: "状态", Width: 90},
+											{Title: "检测项", Width: 200},
+											{Title: "结果", Width: 420},
+										},
+										Model:                 app.model,
+										OnCurrentIndexChanged: func() { app.showDetail() },
+										StretchFactor:         1,
+									},
 								},
-								Model:            app.model,
-								OnCurrentIndexChanged: func() { app.showDetail() },
-								StretchFactor:    1,
+							},
+							GroupBox{
+								Title:         "详情与建议",
+								Layout:        VBox{},
+								StretchFactor: 2,
+								MinSize:       Size{Height: 80},
+								Children: []Widget{
+									TextEdit{
+										AssignTo:      &app.detail,
+										ReadOnly:      true,
+										VScroll:       true,
+										Font:          Font{Family: "Consolas", PointSize: 9},
+										StretchFactor: 1,
+									},
+								},
 							},
 						},
 					},
 					GroupBox{
-						Title:  "详情与建议",
-						Layout: VBox{},
-						StretchFactor: 2,
-						MinSize: Size{Height: 80},
+						Title:   "Ping",
+						Layout:  VBox{Spacing: 6},
+						MinSize: Size{Width: 280},
+						MaxSize: Size{Width: 300, Height: 380},
 						Children: []Widget{
+							Label{Text: "目标地址（IP 或域名）："},
+							LineEdit{
+								AssignTo: &app.pingAddr,
+								Font:     Font{Family: "Consolas", PointSize: 12},
+								OnKeyDown: func(key walk.Key) {
+									if key == walk.KeyReturn {
+										app.doPing()
+									}
+								},
+							},
+							PushButton{
+								AssignTo:  &app.pingBtn,
+								Text:      "开始 Ping",
+								OnClicked: func() { app.doPing() },
+							},
+							Label{Text: "检测结果："},
 							TextEdit{
-								AssignTo: &app.detail,
+								AssignTo: &app.pingResult,
 								ReadOnly: true,
 								VScroll:  true,
-								Font:     Font{Family: "Consolas", PointSize: 9},
-								StretchFactor: 1,
+								Font:     Font{Family: "Microsoft YaHei", PointSize: 10},
+								MinSize:  Size{Height: 160},
 							},
+							Label{Text: "提示：回车开始检测；共发送 4 个数据包。"},
 						},
 					},
 				},

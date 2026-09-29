@@ -109,7 +109,8 @@ func pingOK(host string, n, timeoutMs int) bool {
 		}
 	}
 	for i := 0; i < n; i++ {
-		if pingICMP(ip, timeoutMs) {
+		ok, _, _ := pingICMP(ip, timeoutMs)
+		if ok {
 			return true
 		}
 	}
