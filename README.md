@@ -45,7 +45,7 @@ go build -ldflags "-s -w -H=windowsgui" -o NetDoctor-x64.exe .
 set GOARCH=386 && go build -ldflags "-s -w -H=windowsgui" -o NetDoctor-x86.exe .
 ```
 
-> 资源说明：仓库已包含 `winres/` 配置与生成好的 `.syso` 资源文件（程序图标、版本信息 1.0.0、manifest）。manifest 声明使用新版通用控件（comctl32 v6），**缺失时部分对话框控件（如提示气泡）会创建失败导致程序退出，请勿删除 `.syso`**。
+> 资源说明：仓库已包含 `winres/` 配置与生成好的 `.syso` 资源文件（程序图标、版本信息 1.0.0、manifest）。**为什么 `.syso` 直接入库**：① `go build` 不会自动生成资源文件，不入库则 clone 后直接构建会丢失图标/版本/manifest；② manifest 声明使用新版通用控件（comctl32 v6），**缺失时部分对话框控件会创建失败导致程序退出**（曾实际踩坑），入库可保证任何人构建出的 exe 行为一致。`.syso` 由 `go-winres make` 生成，如需修改资源请改 `winres/winres.json` 后重新生成。
 
 ### 更新记录
 - **2026-09-29**：新增程序图标（地球+扫描雷达）、版本信息 1.0.0；构建资源改为 go-winres 管理（icon / version / manifest 一体化）。
