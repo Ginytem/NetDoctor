@@ -7,7 +7,7 @@
 | 版本 | 形态 | 支持系统 | 状态 |
 |---|---|---|---|
 | **Go 版（netdoctor-go）** | 原生 Win32 GUI 单 EXE，免安装、零运行库依赖 | **Windows 7 SP1 及以上**（32/64 位） | **现行推荐版本** |
-| 旧版（BAT） | IExpress 打包的 BAT + VBScript 单文件 EXE | Windows XP 及以上 | 保留，供 XP 等老设备使用 |
+| 旧版（BAT） | BAT + VBScript 源码（附 IExpress 打包配置，exe 需自行打包） | Windows XP 及以上 | 保留，供 XP 等老设备使用 |
 
 > **兼容性说明**：Go 版基于 Go 1.20 编译，官方支持下限为 Windows 7 SP1，**不支持 Windows XP**；旧版为纯 BAT/VBScript（零 PowerShell 依赖，cscript 为 XP 自带组件），XP 及以上系统均可运行。
 
@@ -48,6 +48,7 @@ set GOARCH=386 && go build -ldflags "-s -w -H=windowsgui" -o NetDoctor-x86.exe .
 > 资源说明：仓库已包含 `winres/` 配置与生成好的 `.syso` 资源文件（程序图标、版本信息 1.0.0、manifest）。**为什么 `.syso` 直接入库**：① `go build` 不会自动生成资源文件，不入库则 clone 后直接构建会丢失图标/版本/manifest；② manifest 声明使用新版通用控件（comctl32 v6），**缺失时部分对话框控件会创建失败导致程序退出**（曾实际踩坑），入库可保证任何人构建出的 exe 行为一致。`.syso` 由 `go-winres make` 生成，如需修改资源请改 `winres/winres.json` 后重新生成。
 
 ### 更新记录
+- **2026-10-04**：清理仓库根目录垃圾/构建产物（`$log`、`b`、旧版 `NetDoctor.exe`）；公开版 totp.go 占位精简（移除弱混淆示例代码）；旧版 BAT 改为源码+打包配置提供。
 - **2026-09-29**：新增程序图标（地球+扫描雷达）、版本信息 1.0.0；构建资源改为 go-winres 管理（icon / version / manifest 一体化）。
 
 ---
@@ -101,7 +102,7 @@ IExpress 打包成单文件 EXE，XP 及以上系统可用。
 
 ### 使用方式
 
-1. 双击 `NetDoctor.exe` 运行
+1. 用 `NetDoctor.SED`（IExpress 打包配置）将 `网络环境诊断_修复版.bat` 打包为 `NetDoctor.exe` 后运行
 2. 等待进度条走完
 3. 自动打开桌面生成的检测报告 txt 文件
 4. 运行结束后 EXE 自动删除

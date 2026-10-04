@@ -3,37 +3,38 @@
 // （Google Authenticator / 微软 Authenticator / Authy 等），
 // 启动时输入手机当前显示的 6 位动态码，程序用同一密钥按当前时间
 // 计算并比对，通过后才允许使用。30 秒一变，无法复用。
+// 公开版说明：动态验证码为本地部署的可选保护，真实密钥由本地文件
+// totp_local.go（已 gitignore，不入库）注入；公开版密钥为空 → 不启用。
 package main
 
 import (
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base32"
-	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"strings"
 	"time"
 )
 
-// 内嵌密钥（混淆存储，防 strings 直接提取）：原始密钥经 XOR(0x7D) + Base64 编码
-// 本文件为公开占位：默认密钥为空（totpSecretEnc="" → 不启用验证码，任何人可直用）。
-// 启用防盗用验证码：本地放置 totp_local.go（不入库），其 init() 覆盖此变量为真实混淆串。
+// totpSecretEnc 内嵌密钥混淆串（公开占位：空 = 不启用验证码，任何人可直用）
 var totpSecretEnc = ""
+
+// remoteKeyURL 远程密钥拉取地址（公开占位：空 = 不拉取）
+var remoteKeyURL = ""
 
 // totpEnabled 验证码模块是否启用（密钥为空则禁用，公开版直接跳过验证）
 func totpEnabled() bool { return totpSecret() != "" }
 
-// totpSecret 运行时还原内嵌密钥
-func totpSecret() string {
-	raw, err := base64.StdEncoding.DecodeString(totpSecretEnc)
-	if err != nil {
+// totpSecret 运行时还原内嵌密钥（公开版为空密钥，直接返回空）
+func totpSecret() string { return decodeSecret(totpSecretEnc) }
+
+// decodeSecret 还原密钥混淆串（公开占位无密钥数据，仅保留入口）
+func decodeSecret(enc string) string {
+	if enc == "" {
 		return ""
 	}
-	for i := range raw {
-		raw[i] ^= 0x7D
-	}
-	return string(raw)
+	return ""
 }
 
 const (
